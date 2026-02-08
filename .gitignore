@@ -1,0 +1,22 @@
+# Python virtual environment
+venv/
+
+# Env files (contains secrets)
+.env
+
+# OS/system files
+.DS_Store
+Thumbs.db
+
+# Compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# SDK/temp files
+*.dll
+*.so
+*.exe
+
+# SVN folders
+.svn/

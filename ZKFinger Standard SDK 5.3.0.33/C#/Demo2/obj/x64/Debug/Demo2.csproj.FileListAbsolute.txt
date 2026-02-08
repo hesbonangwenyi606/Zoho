@@ -1,0 +1,25 @@
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\x64\Debug\Demo.exe
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\x64\Debug\Demo.pdb
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\ResolveAssemblyReference.cache
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\Demo.Form1.resources
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\Demo.Properties.Resources.resources
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\Demo2.csproj.GenerateResource.Cache
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\Demo.exe
+E:\Workspaces\zkteco svn\libfpsensor\trunk\libfpsensor\CSharp\Demo2\obj\x64\Debug\Demo.pdb
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\Demo.exe
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\Demo.pdb
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\x64\Debug\Demo.exe
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\x64\Debug\Demo.pdb
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\ResolveAssemblyReference.cache
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\Demo.Form1.resources
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\Demo.Properties.Resources.resources
+E:\全部安装包\NEW\版本发布\新ZKFinger SDK\20161121\国内\ZKFinger SDK 5.0.0.16\C#\2.0\Demo2\obj\x64\Debug\Demo2.csproj.GenerateResource.Cache
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\x64\Debug\Demo.exe
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\x64\Debug\Demo.pdb
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo.Form1.resources
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo.Properties.Resources.resources
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo2.csproj.GenerateResource.cache
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo2.csproj.CoreCompileInputs.cache
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo2.csproj.CopyComplete
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo.exe
+E:\2017older\SDK Output\指纹采集器\Windows\20180117\ZKFinger SDK 5.0.0.26\C#\Demo2\obj\x64\Debug\Demo.pdb
