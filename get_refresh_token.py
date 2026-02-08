@@ -1,80 +1,19 @@
-import requests
-import time
 import os
 import shutil
+import time
 from datetime import datetime
+
 from dotenv import load_dotenv
 
-# Load credentials from .env file
+from middleware_core import handle_punch, retry_pending
+
 load_dotenv()
 
-# --- ZOHO CREDENTIALS ---
-CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
-CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
-REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
-APP_OWNER = os.getenv("ZOHO_APP_OWNER")
-APP_NAME = os.getenv("ZOHO_APP_NAME")
-
 # --- CONFIGURATION ---
-WATCH_FOLDER = r"C:\ZKLogs" 
-LOG_FILE_NAME = "attlog.dat" 
-PROCESSED_FOLDER = r"C:\ZKLogs\processed"
-DEVICE_ID = "ZK9500_DESKTOP_READER"
-
-# Session storage to prevent duplicate uploads if file isn't moved
-last_sync_timestamps = {}
-
-def get_access_token():
-    url = "https://accounts.zoho.com/oauth/v2/token"
-    params = {
-        "refresh_token": REFRESH_TOKEN,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "grant_type": "refresh_token"
-    }
-    try:
-        r = requests.post(url, params=params)
-        r.raise_for_status() 
-        token_data = r.json()
-        return token_data.get("access_token")
-    except Exception as e:
-        print(f"Auth Error: {e}")
-        return None
-
-def push_to_zoho(token, zk_log_data):
-    # Updated URL to match specified payload format
-    url = f"https://creator.zoho.com/api/v2/{APP_OWNER}/{APP_NAME}/form/Raw_Attendance_Logs/record"
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {token}", 
-        "Content-Type": "application/json"
-    }
-    
-    # Format: YYYY-MM-DDTHH:MM:SS
-    formatted_time = zk_log_data['timestamp'].strftime("%Y-%m-%dT%H:%M:%S")
-    
-    # Unique ID based on User + Time to prevent duplicates
-    log_id = f"{zk_log_data['user_id']}_{formatted_time}"
-    if log_id in last_sync_timestamps:
-        return True # Already synced
-
-    payload = {
-        "data": {
-            "ZKTeco_User_ID": str(zk_log_data['user_id']),
-            "Timestamp": formatted_time,
-            "Event_Type": zk_log_data['event'],
-            "Device_ID": DEVICE_ID
-        }
-    }
-
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        print(f"✅ Synced: User {zk_log_data['user_id']} at {formatted_time}")
-        last_sync_timestamps[log_id] = True
-        return True
-    except Exception as e:
-        print(f"Zoho API Error: {response.text if 'response' in locals() else e}")
-        return False
+WATCH_FOLDER = os.getenv("ZK_LOGS_FOLDER", r"C:\ZKLogs")
+LOG_FILE_NAME = os.getenv("ZK_LOG_FILE", "attlog.dat")
+PROCESSED_FOLDER = os.getenv("ZK_PROCESSED_FOLDER", r"C:\ZKLogs\processed")
+DEVICE_ID = os.getenv("ZK_DEVICE_ID", "ZK9500_DESKTOP_READER")
 
 def parse_line(line):
     line = line.strip()
@@ -87,10 +26,8 @@ def parse_line(line):
         # Parse timestamp
         timestamp_dt = datetime.strptime(f"{parts[1]} {parts[2]}", "%Y-%m-%d %H:%M:%S")
         
-        # Determine IN/OUT based on ZK status code (usually 0=in, 1=out)
-        event = "IN" if (len(parts) > 3 and parts[3] == "0") else "OUT"
-        
-        return {"user_id": user_id, "timestamp": timestamp_dt, "event": event}
+        # Raw event code is not used directly. IN/OUT is computed by middleware.
+        return {"user_id": user_id, "timestamp": timestamp_dt, "raw": line}
     except Exception as e:
         print(f"Parsing Error on line '{line}': {e}")
         return None
@@ -104,11 +41,6 @@ def process_logs():
 
     print(f" Found log file! Processing...")
     
-    token = get_access_token()
-    if not token: 
-        print("Could not get access token. Skipping cycle.")
-        return
-
     success_count = 0
     fail_count = 0
     
@@ -120,10 +52,18 @@ def process_logs():
             for line in lines:
                 data = parse_line(line)
                 if data:
-                    if push_to_zoho(token, data):
+                    ok, msg = handle_punch(
+                        data["user_id"],
+                        data["timestamp"],
+                        DEVICE_ID,
+                        raw_payload=data.get("raw"),
+                        source="attlog",
+                    )
+                    if ok:
                         success_count += 1
                     else:
                         fail_count += 1
+                        print(f"Failed: {msg}")
 
         print(f"📊 Summary: {success_count} succeeded, {fail_count} failed.")
 
@@ -147,4 +87,5 @@ if __name__ == "__main__":
     print("========================================")
     while True:
         process_logs()
+        retry_pending()
         time.sleep(60) # Scan every 1 minute
