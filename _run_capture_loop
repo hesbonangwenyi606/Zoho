@@ -1,0 +1,31 @@
+# ================================
+# Zoho Integration in Fingerprint Loop
+# ================================
+from zoho_utils import refresh_access_token, get_worker_info, send_to_zoho
+
+# Assume you have matched_id and fingerprint_template_b64 from your capture loop
+if matched_id:
+    print(f"Matched user_id={matched_id}")
+    
+    # Step 1: Refresh Zoho access token
+    token = refresh_access_token()
+    if not token:
+        print("Failed to connect to Zoho: No access token")
+    else:
+        # Step 2: Fetch worker info
+        worker_data = get_worker_info(matched_id, token)
+        if worker_data.get("data") and len(worker_data["data"]) > 0:
+            full_name = worker_data["data"][0].get("Full_Name", "Unknown")
+            print(f"Successfully connected! Worker: {full_name}")
+        else:
+            print(f"No worker info found for user {matched_id}")
+        
+        # Step 3: Send fingerprint template to Zoho
+        if fingerprint_template_b64:
+            sent = send_to_zoho(matched_id, fingerprint_template_b64)
+            if sent:
+                print(f"Fingerprint template for user {matched_id} logged to Zoho.")
+            else:
+                print(f"Failed to send fingerprint template for user {matched_id}.")
+        else:
+            print("No fingerprint template available to send.")

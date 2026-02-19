@@ -1,368 +1,1001 @@
-import argparse
-import base64
-import json
-import os
-import sys
-import time
-from ctypes import *
+# import os
+# import time
+# import requests
+# import argparse
+# from datetime import datetime
+# from dotenv import load_dotenv
+# from pyzkfp import ZKFP2
+
+# # ==========================================================
+# # 1. CONFIGURATION
+# # ==========================================================
+# load_dotenv()
+
+# ZOHO_DOMAIN = os.getenv("ZOHO_DOMAIN", "zoho.com")
+# APP_OWNER = os.getenv("APP_OWNER")
+# APP_NAME = os.getenv("APP_NAME")
+# CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
+# CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
+# REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
+
+# WORKERS_REPORT = "All_Workers"
+# ATTENDANCE_FORM = "Daily_Attendance"
+# DEFAULT_PROJECT_ID = "4838902000000391493"
+
+# TOKEN_CACHE = {"token": None, "expires_at": 0}
+# API_DOMAIN = f"https://creator.zoho.{ZOHO_DOMAIN.split('.')[-1]}/api/v2"
+
+# # ==========================================================
+# # 2. AUTHENTICATION
+# # ==========================================================
+# def get_access_token():
+#     now = time.time()
+#     if TOKEN_CACHE["token"] and now < TOKEN_CACHE["expires_at"] - 60:
+#         return TOKEN_CACHE["token"]
+
+#     url = f"https://accounts.{ZOHO_DOMAIN}/oauth/v2/token"
+#     data = {
+#         "refresh_token": REFRESH_TOKEN,
+#         "client_id": CLIENT_ID,
+#         "client_secret": CLIENT_SECRET,
+#         "grant_type": "refresh_token",
+#     }
+
+#     try:
+#         response = requests.post(url, data=data, timeout=20)
+#         result = response.json()
+#         if "access_token" in result:
+#             TOKEN_CACHE["token"] = result["access_token"]
+#             TOKEN_CACHE["expires_at"] = now + int(result.get("expires_in", 3600))
+#             return TOKEN_CACHE["token"]
+#         else:
+#             print("Authentication Error:", result)
+#     except Exception as e:
+#         print(f"Authentication Exception: {e}")
+#     return None
+
+# # ==========================================================
+# # 3. FIND WORKER
+# # ==========================================================
+# def find_worker(user_id):
+#     token = get_access_token()
+#     if not token:
+#         print("No access token available.")
+#         return None
+
+#     headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+#     report_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}"
+#     criteria = f'(ZKTeco_User_ID2 == {int(user_id)})'
+
+#     try:
+#         response = requests.get(report_url, headers=headers, params={"criteria": criteria})
+#         data = response.json().get("data", [])
+#         if data:
+#             return data[0]
+#     except Exception as e:
+#         print("Error while finding worker:", e)
+#     return None
+
+# # ==========================================================
+# # 4. HELPER: FORMAT TOTAL TIME ("Xh Ym")
+# # ==========================================================
+# def format_total_time(total_seconds):
+#     hours, remainder = divmod(total_seconds, 3600)
+#     minutes = int(round(remainder / 60))  # round to nearest minute
+#     return f"{int(hours)}h {minutes}m"
+
+# # ==========================================================
+# # 5. LOG ATTENDANCE (AUTO CHECK-IN / CHECK-OUT)
+# # ==========================================================
+# def log_attendance_auto(worker_record_id, project_id):
+#     token = get_access_token()
+#     if not token:
+#         print("No access token available.")
+#         return
+
+#     headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+#     now = datetime.now()
+#     today_str = now.strftime("%d-%b-%Y")
+
+#     # Get worker details
+#     worker_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+#     r_worker = requests.get(worker_url, headers=headers)
+#     worker_data = r_worker.json().get("data", {})
+
+#     full_name = worker_data.get("Full_Name", "N/A")
+#     role_name = worker_data.get("Roles", "N/A")
+#     proj_lookup_id = project_id or DEFAULT_PROJECT_ID
+#     attendance_form_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/form/{ATTENDANCE_FORM}"
+
+#     # Check if attendance exists today
+#     criteria_today = f'(Worker_ID_Lookup == "{worker_record_id}" && Date == "{today_str}")'
+#     r_check = requests.get(
+#         attendance_form_url.replace("/form/", "/report/"),
+#         headers=headers,
+#         params={"criteria": criteria_today}
+#     )
+#     data_today = r_check.json().get("data", [])
+
+#     if data_today:
+#         # CHECK-OUT
+#         att = data_today[0]
+#         attendance_id = att["ID"]
+#         first_in_str = att.get("First_In")
+#         last_out_str = att.get("Last_Out")
+
+#         if last_out_str:
+#             print(f"{full_name} has already checked out today at {last_out_str}.")
+#         else:
+#             try:
+#                 first_in = datetime.strptime(first_in_str, "%d-%b-%Y %H:%M:%S")
+#             except:
+#                 first_in = now
+
+#             total_seconds = (now - first_in).total_seconds()
+#             total_hours = total_seconds / 3600
+#             total_time_str = format_total_time(total_seconds)
+
+#             payload = {
+#                 "data": {
+#                     "Last_Out": now.strftime("%d-%b-%Y %H:%M:%S"),
+#                     "Total_Hours": total_hours,           # float for calculations
+#                     "Total_Time_Str": total_time_str      # human-readable "Xh Ym"
+#                 }
+#             }
+
+#             requests.put(
+#                 f"{attendance_form_url}/{attendance_id}",
+#                 headers=headers,
+#                 json=payload
+#             )
+
+#             print(f"{full_name} checked OUT at {now.strftime('%H:%M')}")
+#             print(f"Total Time Worked: {total_time_str}")
+
+#     else:
+#         # CHECK-IN
+#         r_all = requests.get(
+#             attendance_form_url.replace("/form/", "/report/"),
+#             headers=headers,
+#             params={"criteria": f'(Worker_ID_Lookup == "{worker_record_id}")'}
+#         )
+#         total_days = len(r_all.json().get("data", [])) + 1
+
+#         payload = {
+#             "data": {
+#                 "Worker_ID_Lookup": worker_record_id,
+#                 "Worker_Name": worker_record_id,
+#                 "Projects": proj_lookup_id,
+#                 "Projects_Assigned": proj_lookup_id,
+#                 "Date": today_str,
+#                 "First_In": now.strftime("%d-%b-%Y %H:%M:%S"),
+#                 "Worker_Full_Name": full_name,
+#                 "Roles": role_name,
+#                 "Total_Days_Worked": total_days
+#             }
+#         }
+
+#         requests.post(attendance_form_url, headers=headers, json=payload)
+#         print(f"{full_name} checked IN at {now.strftime('%H:%M')}")
+
+#     print_today_summary(worker_record_id)
+
+# # ==========================================================
+# # 6. PRINT TODAY SUMMARY
+# # ==========================================================
+# def print_today_summary(worker_record_id):
+#     token = get_access_token()
+#     if not token:
+#         print("No access token available.")
+#         return
+
+#     headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+#     today_str = datetime.now().strftime("%d-%b-%Y")
+#     attendance_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{ATTENDANCE_FORM}"
+
+#     attendance_data = []
+#     for _ in range(5):
+#         response = requests.get(
+#             attendance_url,
+#             headers=headers,
+#             params={"criteria": f'(Worker_ID_Lookup == "{worker_record_id}" && Date == "{today_str}")'}
+#         )
+#         attendance_data = response.json().get("data", [])
+#         if attendance_data:
+#             break
+#         time.sleep(1)
+
+#     if attendance_data:
+#         att = attendance_data[0]
+#         first_in = att.get("First_In", "N/A")
+#         last_out = att.get("Last_Out") or "Not checked out yet"
+#         total_time_str = att.get("Total_Time_Str", "N/A")
+
+#         print("\nToday's Attendance Summary:")
+#         print(f"First In  : {first_in}")
+#         print(f"Last Out  : {last_out}")
+#         print(f"Total Time: {total_time_str}")  # <-- always "Xh Ym"
+#     else:
+#         print("\nRemember to CheckOut at the evening for your Dairy-Pay to be updated")
+
+# # ==========================================================
+# # 7. ENROLL FINGERPRINT + ATTENDANCE
+# # ==========================================================
+# def enroll_fingerprint_auto(user_id):
+#     zkfp2 = ZKFP2()
+#     zkfp2.Init()
+
+#     if zkfp2.GetDeviceCount() == 0:
+#         print("No fingerprint device found.")
+#         return
+
+#     zkfp2.OpenDevice(0)
+
+#     try:
+#         worker = find_worker(user_id)
+#         if not worker:
+#             print("Sorry, you are no longer a participant here.")
+#             print("Please contact the Admin")
+#             return
+
+#         worker_record_id = worker["ID"]
+#         full_name = worker.get("Full_Name", "N/A")
+#         proj_id = worker.get("Projects_Assigned", {}).get("ID") or DEFAULT_PROJECT_ID
+#         existing_template = worker.get("Fingerprint_Template")
+
+#         if not existing_template or existing_template.strip() == "":
+#             print("Place your finger on the scanner to enroll fingerprint.")
+
+#             capture = None
+#             while not capture:
+#                 capture = zkfp2.AcquireFingerprint()
+#                 time.sleep(0.1)
+
+#             template_hex = bytes(list(capture[0])).hex()
+#             token = get_access_token()
+#             headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+#             update_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+
+#             response = requests.put(
+#                 update_url,
+#                 headers=headers,
+#                 json={"data": {"Fingerprint_Template": template_hex}}
+#             )
+
+#             print(f"Fingerprint saved for {full_name}. Response: {response.status_code}")
+
+#         log_attendance_auto(worker_record_id, proj_id)
+
+#     finally:
+#         zkfp2.CloseDevice()
+#         zkfp2.Terminate()
+
+# # ==========================================================
+# # 8. MAIN ENTRY POINT
+# # ==========================================================
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--user-id", type=str, required=True)
+#     args = parser.parse_args()
+#     enroll_fingerprint_auto(args.user_id)
+
+
+
+# import os, ast, time, json, requests, argparse, base64
+# from datetime import datetime
+# from dotenv import load_dotenv
+# from pyzkfp import ZKFP2
+
+# # ==========================================================
+# # 1. CONFIGURATION
+# # ==========================================================
+# load_dotenv()
+
+# ZOHO_DOMAIN    = os.getenv("ZOHO_DOMAIN", "zoho.com")
+# APP_OWNER      = "wavemarkpropertieslimited"
+# APP_NAME       = "real-estate-wages-system"
+# CLIENT_ID      = os.getenv("ZOHO_CLIENT_ID")
+# CLIENT_SECRET  = os.getenv("ZOHO_CLIENT_SECRET")
+# REFRESH_TOKEN  = os.getenv("ZOHO_REFRESH_TOKEN")
+
+# WORKERS_REPORT    = "All_Workers"
+# ATTENDANCE_FORM   = "Daily_Attendance"
+# ATTENDANCE_REPORT = "Daily_Attendance_Report"
+
+# DEFAULT_PROJECT_ID = "4838902000000391493"
+# TOKEN_CACHE = {"token": None, "expires_at": 0}
+# API_DOMAIN  = f"https://creator.zoho.{ZOHO_DOMAIN.split('.')[-1]}/api/v2"
+# CHECKIN_LOCK_FILE = "checkin_today.json"
+
+# # ==========================================================
+# # 2. NETWORK RETRY WRAPPER
+# # ==========================================================
+# MAX_RETRIES   = 4
+# RETRY_DELAY   = 3
+# TIMEOUT       = 20
+# RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+
+# def zoho_request(method, url, *, retries=MAX_RETRIES, expected_statuses=(200,201), **kwargs):
+#     kwargs.setdefault("timeout", TIMEOUT)
+#     for attempt in range(1, retries + 1):
+#         try:
+#             response = requests.request(method, url, **kwargs)
+#             if response.status_code in expected_statuses:
+#                 return response
+#             if response.status_code in RETRYABLE_STATUSES:
+#                 wait = RETRY_DELAY * attempt
+#                 print(f"[RETRY] HTTP {response.status_code} on {method} {url}, retrying in {wait}s")
+#                 time.sleep(wait)
+#                 continue
+#             return response
+#         except (requests.exceptions.ConnectionError,
+#                 requests.exceptions.Timeout,
+#                 OSError) as e:
+#             wait = RETRY_DELAY * attempt
+#             print(f"[RETRY] Network error: {e}, retrying in {wait}s")
+#             time.sleep(wait)
+#         except requests.exceptions.RequestException as e:
+#             print(f"[ERROR] Unrecoverable request error: {e}")
+#             return None
+#     print(f"[ERROR] All {retries} attempts failed for {method} {url}")
+#     return None
+
+# # ==========================================================
+# # 3. LOCAL CHECK-IN LOCK
+# # ==========================================================
+# def load_checkin_lock():
+#     today_str = datetime.now().strftime("%Y-%m-%d")
+#     if os.path.exists(CHECKIN_LOCK_FILE):
+#         try:
+#             with open(CHECKIN_LOCK_FILE, "r") as f:
+#                 data = json.load(f)
+#             if data.get("date") == today_str:
+#                 return data
+#         except Exception:
+#             pass
+#     return {"date": today_str, "checked_in": {}, "checked_out": {}}
+
+# def is_checked_in_today(worker_record_id):
+#     return load_checkin_lock()["checked_in"].get(worker_record_id)
+
+# def is_checked_out_today(worker_record_id):
+#     return worker_record_id in load_checkin_lock().get("checked_out", {})
+
+# def mark_checked_in(worker_record_id, checkin_time_str):
+#     lock = load_checkin_lock()
+#     lock["checked_in"][worker_record_id] = checkin_time_str
+#     with open(CHECKIN_LOCK_FILE, "w") as f:
+#         json.dump(lock, f)
+
+# def mark_checked_out(worker_record_id):
+#     lock = load_checkin_lock()
+#     lock["checked_in"].pop(worker_record_id, None)
+#     lock.setdefault("checked_out", {})[worker_record_id] = datetime.now().strftime("%H:%M:%S")
+#     with open(CHECKIN_LOCK_FILE, "w") as f:
+#         json.dump(lock, f)
+
+# # ==========================================================
+# # 4. AUTHENTICATION
+# # ==========================================================
+# def get_access_token():
+#     now = time.time()
+#     if TOKEN_CACHE["token"] and now < TOKEN_CACHE["expires_at"] - 60:
+#         return TOKEN_CACHE["token"]
+#     url  = f"https://accounts.{ZOHO_DOMAIN}/oauth/v2/token"
+#     data = {
+#         "refresh_token": REFRESH_TOKEN,
+#         "client_id":     CLIENT_ID,
+#         "client_secret": CLIENT_SECRET,
+#         "grant_type":    "refresh_token",
+#     }
+#     r = zoho_request("POST", url, data=data)
+#     if r is None:
+#         print("[ERROR] Token request failed")
+#         return None
+#     result = r.json()
+#     if "access_token" in result:
+#         TOKEN_CACHE["token"] = result["access_token"]
+#         TOKEN_CACHE["expires_at"] = now + int(result.get("expires_in", 3600))
+#         return TOKEN_CACHE["token"]
+#     print("Authentication Error:", result)
+#     return None
+
+# def auth_headers():
+#     token = get_access_token()
+#     if not token:
+#         raise RuntimeError("Could not obtain access token.")
+#     return {"Authorization": f"Zoho-oauthtoken {token}"}
+
+# # ==========================================================
+# # 5. WORKER HELPERS
+# # ==========================================================
+# def find_worker(user_id):
+#     url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}"
+#     criteria = f"(ZKTeco_User_ID2 == {int(user_id)})"
+#     r = zoho_request("GET", url, headers=auth_headers(), params={"criteria": criteria})
+#     if r:
+#         data = r.json().get("data", [])
+#         if data:
+#             return data[0]
+#     return None
+
+# def get_worker_record(worker_record_id):
+#     url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+#     r = zoho_request("GET", url, headers=auth_headers())
+#     return r.json().get("data", {}) if r else {}
+
+# def is_fingerprint_enrolled(full_record):
+#     raw = full_record.get("Fingerprint_Enrolled", [])
+#     if isinstance(raw, str):
+#         try: raw = ast.literal_eval(raw)
+#         except Exception: raw = []
+#     return isinstance(raw, list) and "YES" in raw
+
+# def mark_fingerprint_enrolled(worker_record_id):
+#     update_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+#     for payload_value in (["YES"], "YES"):
+#         r = zoho_request("PUT", update_url, headers=auth_headers(),
+#                          json={"data": {"Fingerprint_Enrolled": payload_value}})
+#         if r and r.status_code in (200, 201):
+#             time.sleep(2)
+#             refreshed = get_worker_record(worker_record_id)
+#             if is_fingerprint_enrolled(refreshed):
+#                 return True
+#     print("[ERROR] Could not update Fingerprint_Enrolled to YES.")
+#     return False
+
+# # ==========================================================
+# # 6. FORMAT TOTAL TIME
+# # ==========================================================
+# def format_total_time(total_seconds):
+#     hours, remainder = divmod(int(total_seconds), 3600)
+#     minutes = round(remainder / 60)
+#     return f"{hours}h {minutes}m"
+
+# # ==========================================================
+# # 7. ATTENDANCE HELPERS
+# # ==========================================================
+# def get_today_attendance(worker_record_id):
+#     today_str = datetime.now().strftime("%d-%b-%Y")
+#     url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{ATTENDANCE_REPORT}"
+#     criteria = f'(Worker_ID_Lookup == "{worker_record_id}" && Date == "{today_str}")'
+#     for _ in range(8):
+#         r = zoho_request("GET", url, headers=auth_headers(), params={"criteria": criteria})
+#         if r is None:
+#             return None
+#         if r.status_code == 404:
+#             print(f"[ERROR] 404 on report '{ATTENDANCE_REPORT}'")
+#             return None
+#         data = r.json().get("data", [])
+#         if data: return data[0]
+#         time.sleep(2)
+#     return {}
+
+# # ==========================================================
+# # 8. LOG ATTENDANCE WITH SINGLE DAILY CHECK-IN
+# # ==========================================================
+# def log_attendance_auto(worker_record_id, project_id, full_name, role_name):
+#     now = datetime.now()
+#     today_str = now.strftime("%d-%b-%Y")
+#     form_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/form/{ATTENDANCE_FORM}"
+#     proj_lookup = project_id or DEFAULT_PROJECT_ID
+
+#     if is_checked_out_today(worker_record_id):
+#         print(f"⛔ {full_name} has already checked IN and OUT today. See you tomorrow!")
+#         return
+
+#     checkin_time = is_checked_in_today(worker_record_id)
+#     if checkin_time:
+#         # CHECK-OUT
+#         try: first_in_dt = datetime.strptime(checkin_time, "%d-%b-%Y %H:%M:%S")
+#         except Exception: first_in_dt = now
+#         total_secs = (now - first_in_dt).total_seconds()
+#         total_time_str = format_total_time(total_secs)
+
+#         existing = get_today_attendance(worker_record_id)
+#         if existing and existing.get("ID"):
+#             att_id = existing["ID"]
+#             r = zoho_request("PUT", f"{form_url}/{att_id}", headers=auth_headers(),
+#                              json={"data": {
+#                                  "Last_Out": now.strftime("%d-%b-%Y %H:%M:%S"),
+#                                  "Total_Hours": total_secs / 3600,
+#                                  "Total_Time_Str": total_time_str
+#                              }})
+#             if r and r.status_code in (200,201):
+#                 mark_checked_out(worker_record_id)
+#                 print(f"🚪 {full_name} checked OUT at {now.strftime('%H:%M')}")
+#                 print(f"   Total Time Worked: {total_time_str}")
+#             else:
+#                 status = r.status_code if r else "No response"
+#                 body   = r.text[:300] if r else ""
+#                 print(f"[ERROR] Check-out failed ({status}): {body}")
+#         else:
+#             print("⚠ Attendance record already exists for today. Contact Admin.")
+#         return
+
+#     # CHECK-IN
+#     checkin_str = now.strftime("%d-%b-%Y %H:%M:%S")
+#     r = zoho_request("POST", form_url, headers=auth_headers(),
+#                      json={"data": {
+#                          "Worker_ID_Lookup": worker_record_id,
+#                          "Worker_Name": worker_record_id,
+#                          "Projects": proj_lookup,
+#                          "Projects_Assigned": proj_lookup,
+#                          "Date": today_str,
+#                          "First_In": checkin_str,
+#                          "Worker_Full_Name": full_name,
+#                          "Roles": role_name
+#                      }})
+#     if r and r.status_code in (200,201):
+#         mark_checked_in(worker_record_id, checkin_str)
+#         print(f"✅ {full_name} checked IN at {now.strftime('%H:%M')}")
+#         print("   Remember to check OUT in the evening for your Daily-Pay to be updated.")
+#     else:
+#         status = r.status_code if r else "No response"
+#         body   = r.text[:300] if r else ""
+#         print(f"[ERROR] Check-in failed ({status}): {body}")
+
+# # ==========================================================
+# # 9. ENROLL & VERIFY FINGERPRINT
+# # ==========================================================
+# def enroll_fingerprint_auto(user_id):
+#     zkfp2 = ZKFP2()
+#     zkfp2.Init()
+
+#     if zkfp2.GetDeviceCount() == 0:
+#         print("No fingerprint device found.")
+#         return
+
+#     zkfp2.OpenDevice(0)
+
+#     try:
+#         worker = find_worker(user_id)
+#         if not worker:
+#             print("You are not registered in the system. Contact Admin.")
+#             return
+
+#         worker_record_id = worker["ID"]
+#         full_name = worker.get("Full_Name", "N/A")
+#         role_name = worker.get("Roles", "N/A")
+
+#         proj_raw = worker.get("Projects_Assigned", {})
+#         if isinstance(proj_raw, str):
+#             try: proj_raw = ast.literal_eval(proj_raw)
+#             except Exception: proj_raw = {}
+#         proj_id = proj_raw.get("ID") or DEFAULT_PROJECT_ID
+
+#         full_record = get_worker_record(worker_record_id)
+#         enrolled_templates = full_record.get("Fingerprint_Templates", [])
+#         if isinstance(enrolled_templates, str):
+#             try: enrolled_templates = ast.literal_eval(enrolled_templates)
+#             except Exception: enrolled_templates = []
+
+#         # Already enrolled? → verify
+#         if enrolled_templates:
+#             print(f"Welcome back, {full_name}! Place your finger to verify.")
+#             capture = None
+#             while not capture:
+#                 capture = zkfp2.AcquireFingerprint()
+#                 time.sleep(0.1)
+
+#             template_bytes = bytes(list(capture[0]))
+#             match_found = False
+#             for t_b64 in enrolled_templates:
+#                 t_bytes = base64.b64decode(t_b64)
+#                 if zkfp2.MatchFingerprint(template_bytes, t_bytes):
+#                     match_found = True
+#                     break
+
+#             if match_found:
+#                 print("✅ Fingerprint verified!")
+#                 log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
+#                 return
+#             else:
+#                 print("❌ Fingerprint did not match any stored template. Contact Admin.")
+#                 return
+
+#         # Not enrolled → enroll
+#         print(f"Welcome {full_name}! Place your finger on the scanner to enroll.")
+#         capture = None
+#         while not capture:
+#             capture = zkfp2.AcquireFingerprint()
+#             time.sleep(0.1)
+
+#         template_bytes = bytes(list(capture[0]))
+#         template_b64 = base64.b64encode(template_bytes).decode()
+#         enrolled_templates.append(template_b64)
+
+#         update_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+#         zoho_request("PUT", update_url, headers=auth_headers(),
+#                      json={"data": {"Fingerprint_Templates": enrolled_templates}})
+
+#         mark_fingerprint_enrolled(worker_record_id)
+#         print(f"✅ Fingerprint enrolled for {full_name}.")
+
+#         log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
+
+#     finally:
+#         zkfp2.CloseDevice()
+#         zkfp2.Terminate()
+
+# # ==========================================================
+# # 10. MAIN
+# # ==========================================================
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--user-id", type=str, required=True)
+#     args = parser.parse_args()
+#     enroll_fingerprint_auto(args.user_id)
+
+import os, ast, time, json, requests, argparse, base64
 from datetime import datetime
-
 from dotenv import load_dotenv
+from pyzkfp import ZKFP2
 
-from middleware_core import handle_punch, retry_pending
-
-print("Script started...")
-
-# ====================================
-# LOAD ENVIRONMENT VARIABLES
-# ====================================
+# ==========================================================
+# 1. CONFIGURATION
+# ==========================================================
 load_dotenv()
 
-DEVICE_ID = os.getenv("ZK_DEVICE_ID", "ZK9500_USB_FINGERPRINT")
-FINGERPRINT_DB_FILE = os.getenv("FINGERPRINT_DB_FILE", "fingerprints.json")
+ZOHO_DOMAIN    = os.getenv("ZOHO_DOMAIN", "zoho.com")
+APP_OWNER      = "wavemarkpropertieslimited"
+APP_NAME       = "real-estate-wages-system"
+CLIENT_ID      = os.getenv("ZOHO_CLIENT_ID")
+CLIENT_SECRET  = os.getenv("ZOHO_CLIENT_SECRET")
+REFRESH_TOKEN  = os.getenv("ZOHO_REFRESH_TOKEN")
 
-DB_HANDLE = None
-FID_TO_USER = {}
-FP_IMG_BUF = None
-FP_IMG_SIZE = 0
-DEV_HANDLE = None
+WORKERS_REPORT    = "All_Workers"
+ATTENDANCE_FORM   = "Daily_Attendance"
+ATTENDANCE_REPORT = "Daily_Attendance_Report"
 
-ERR_MAP = {
-    0: "OK",
-    -1: "INITLIB_FAIL",
-    -2: "INIT_FAIL",
-    -3: "NO_DEVICE",
-    -4: "NOT_SUPPORTED",
-    -5: "INVALID_PARAM",
-    -6: "OPEN_FAIL",
-    -7: "INVALID_HANDLE",
-    -8: "CAPTURE_FAIL",
-    -9: "EXTRACT_FAIL",
-    -10: "ABORT",
-    -11: "MEMORY_NOT_ENOUGH",
-    -12: "BUSY",
-    -13: "ADD_FINGER_FAIL",
-    -14: "DEL_FINGER_FAIL",
-    -17: "FAIL",
-    -18: "CANCEL",
-    -20: "VERIFY_FAIL",
-    -22: "MERGE_FAIL",
-    -23: "NOT_OPENED",
-    -24: "NOT_INIT",
-    -25: "ALREADY_OPENED",
-    -26: "LOADIMAGE_FAIL",
-    -27: "ANALYSE_IMG_FAIL",
-    -28: "TIMEOUT",
-}
+DEFAULT_PROJECT_ID = "4838902000000391493"
+TOKEN_CACHE = {"token": None, "expires_at": 0}
+API_DOMAIN  = f"https://creator.zoho.{ZOHO_DOMAIN.split('.')[-1]}/api/v2"
+CHECKIN_LOCK_FILE = "checkin_today.json"
 
-# ====================================
-# LOAD ZKTECO SDK DLL
-# ====================================
-def _resolve_dll_path():
-    env_path = os.getenv("ZKFP_DLL_PATH")
-    if env_path and os.path.exists(env_path):
-        return env_path
-    for name in ("zkfp.dll", "libzkfp.dll"):
-        candidate = os.path.join(os.getcwd(), name)
-        if os.path.exists(candidate):
-            return candidate
-    return None
+MAX_RETRIES   = 4
+RETRY_DELAY   = 3
+TIMEOUT       = 20
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
-
-SDK_PATH = _resolve_dll_path()
-if not SDK_PATH:
-    print("ERROR: zkfp.dll/libzkfp.dll not found. Set ZKFP_DLL_PATH.")
-    sys.exit(1)
-
-try:
-    zkfp = WinDLL(SDK_PATH)
-    print(f"Loaded {os.path.basename(SDK_PATH)} successfully")
-except Exception as e:
-    print(f"Failed to load DLL: {e}")
-    sys.exit(1)
-
-def _set_api():
-    zkfp.ZKFPM_Init.restype = c_int
-    zkfp.ZKFPM_GetDeviceCount.restype = c_int
-    zkfp.ZKFPM_OpenDevice.restype = c_void_p
-    zkfp.ZKFPM_DBInit.restype = c_void_p
-    zkfp.ZKFPM_CloseDevice.restype = c_int
-    zkfp.ZKFPM_DBFree.restype = c_int
-    zkfp.ZKFPM_Terminate.restype = c_int
-    zkfp.ZKFPM_AcquireFingerprint.restype = c_int
-    zkfp.ZKFPM_DBIdentify.restype = c_int
-    zkfp.ZKFPM_DBAdd.restype = c_int
-    zkfp.ZKFPM_DBMerge.restype = c_int
-    zkfp.ZKFPM_DBMatch.restype = c_int
-
-    zkfp.ZKFPM_OpenDevice.argtypes = [c_int]
-    zkfp.ZKFPM_CloseDevice.argtypes = [c_void_p]
-    zkfp.ZKFPM_DBInit.argtypes = []
-    zkfp.ZKFPM_DBFree.argtypes = [c_void_p]
-    zkfp.ZKFPM_Terminate.argtypes = []
-    zkfp.ZKFPM_AcquireFingerprint.argtypes = [c_void_p, c_void_p, c_uint, c_void_p, POINTER(c_uint)]
-    zkfp.ZKFPM_GetCaptureParamsEx.argtypes = [c_void_p, POINTER(c_int), POINTER(c_int), POINTER(c_int)]
-    zkfp.ZKFPM_DBIdentify.argtypes = [c_void_p, c_void_p, c_uint, POINTER(c_uint), POINTER(c_uint)]
-    zkfp.ZKFPM_DBAdd.argtypes = [c_void_p, c_uint, c_void_p, c_uint]
-    zkfp.ZKFPM_DBMerge.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_void_p, POINTER(c_uint)]
-    zkfp.ZKFPM_DBMatch.argtypes = [c_void_p, c_void_p, c_uint, c_void_p, c_uint]
-
-
-# ====================================
-# FINGERPRINT DEVICE INIT
-# ====================================
-def init_device():
-    print("Initializing fingerprint SDK...")
-    _set_api()
-    if zkfp.ZKFPM_Init() != 0:
-        print("Failed to initialize SDK")
-        sys.exit(1)
-
-    count = zkfp.ZKFPM_GetDeviceCount()
-    print(f"Devices detected: {count}")
-    if count <= 0:
-        print("No fingerprint device found")
-        sys.exit(1)
-
-    handle = zkfp.ZKFPM_OpenDevice(0)
-    if handle == 0:
-        print("Failed to open fingerprint device")
-        sys.exit(1)
-
-    print("Fingerprint device opened successfully")
-    global DB_HANDLE, FP_IMG_BUF, FP_IMG_SIZE, DEV_HANDLE
-    DEV_HANDLE = handle
-    DB_HANDLE = zkfp.ZKFPM_DBInit()
-    if not DB_HANDLE:
-        print("Failed to initialize fingerprint DB cache")
-        sys.exit(1)
-
-    # Prepare image buffer for capture
-    width = c_int(0)
-    height = c_int(0)
-    dpi = c_int(0)
-    ret = zkfp.ZKFPM_GetCaptureParamsEx(handle, byref(width), byref(height), byref(dpi))
-    if ret != 0 or width.value <= 0 or height.value <= 0:
-        print("Failed to get capture params.")
-        sys.exit(1)
-    FP_IMG_SIZE = width.value * height.value
-    FP_IMG_BUF = create_string_buffer(FP_IMG_SIZE)
-
-    _load_fingerprint_db()
-    return handle
-
-
-def _reset_device():
-    global DEV_HANDLE, DB_HANDLE, FP_IMG_BUF, FP_IMG_SIZE
-    try:
-        if DB_HANDLE:
-            zkfp.ZKFPM_DBFree(DB_HANDLE)
-    except Exception:
-        pass
-    try:
-        if DEV_HANDLE:
-            zkfp.ZKFPM_CloseDevice(DEV_HANDLE)
-    except Exception:
-        pass
-    try:
-        zkfp.ZKFPM_Terminate()
-    except Exception:
-        pass
-    time.sleep(0.5)
-    return init_device()
-
-# ====================================
-# CAPTURE FINGERPRINT
-# ====================================
-def capture_fingerprint(handle):
-    template = create_string_buffer(2048)
-    template_len = c_uint(2048)
-
-    ret = zkfp.ZKFPM_AcquireFingerprint(handle, FP_IMG_BUF, FP_IMG_SIZE, template, byref(template_len))
-    if ret == 0:
-        print("Fingerprint captured")
-        return template.raw[:template_len.value], template_len.value, ret
-    else:
-        err = ERR_MAP.get(ret, "UNKNOWN")
-        print(f"No fingerprint detected (ret={ret} {err})")
-        return None, 0, ret
-
-
-def _load_fingerprint_db():
-    global FID_TO_USER
-    if not os.path.isfile(FINGERPRINT_DB_FILE):
-        print("Fingerprint DB file not found, starting empty.")
-        return
-
-    with open(FINGERPRINT_DB_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    FID_TO_USER = {}
-    for item in data:
-        fid = int(item["fid"])
-        user_id = str(item["zkteco_user_id"])
-        tpl = base64.b64decode(item["template_b64"])
-        tpl_buf = create_string_buffer(tpl, len(tpl))
-        ret = zkfp.ZKFPM_DBAdd(DB_HANDLE, fid, tpl_buf, len(tpl))
-        if ret == 0:
-            FID_TO_USER[fid] = user_id
-    print(f"Loaded {len(FID_TO_USER)} fingerprint templates into DB cache.")
-
-
-def _save_fingerprint_db(entries):
-    with open(FINGERPRINT_DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(entries, f, indent=2)
-
-# ====================================
-# MATCH FINGERPRINT (MOCK)
-# ====================================
-def match_fingerprint(template_bytes, template_len):
-    if not DB_HANDLE:
-        return None
-    tpl_buf = create_string_buffer(template_bytes, template_len)
-    fid = c_uint(0)
-    score = c_uint(0)
-    ret = zkfp.ZKFPM_DBIdentify(DB_HANDLE, tpl_buf, template_len, byref(fid), byref(score))
-    if ret == 0:
-        return FID_TO_USER.get(fid.value)
-    return None
-
-
-def enroll_fingerprint(user_id, handle):
-    print(f"Enrollment started for user {user_id}. Place the same finger 3 times.")
-    captures = []
-    while len(captures) < 3:
-        print(f"Waiting for capture {len(captures) + 1}/3 (place finger, then lift).")
+# ==========================================================
+# 2. NETWORK RETRY WRAPPER
+# ==========================================================
+def zoho_request(method, url, *, retries=MAX_RETRIES, expected_statuses=(200,201), **kwargs):
+    kwargs.setdefault("timeout", TIMEOUT)
+    for attempt in range(1, retries + 1):
         try:
-            tpl, tpl_len, _ = capture_fingerprint(handle)
-            if tpl and tpl_len > 0:
-                print(f"Captured raw template (len={tpl_len}).")
-                captures.append((tpl, tpl_len))
-                print(f"Captured {len(captures)} / 3")
-                time.sleep(0.8)
+            response = requests.request(method, url, **kwargs)
+            if response.status_code in expected_statuses:
+                return response
+            if response.status_code in RETRYABLE_STATUSES:
+                wait = RETRY_DELAY * attempt
+                print(f"[RETRY] HTTP {response.status_code} on {method} {url}, retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            return response
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                OSError) as e:
+            wait = RETRY_DELAY * attempt
+            print(f"[RETRY] Network error: {e}, retrying in {wait}s")
+            time.sleep(wait)
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Unrecoverable request error: {e}")
+            return None
+    print(f"[ERROR] All {retries} attempts failed for {method} {url}")
+    return None
+
+# ==========================================================
+# 3. LOCAL CHECK-IN LOCK
+# ==========================================================
+def load_checkin_lock():
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if os.path.exists(CHECKIN_LOCK_FILE):
+        try:
+            with open(CHECKIN_LOCK_FILE, "r") as f:
+                data = json.load(f)
+            if data.get("date") == today_str:
+                return data
+        except Exception:
+            pass
+    return {"date": today_str, "checked_in": {}, "checked_out": {}}
+
+def is_checked_in_today(worker_record_id):
+    return load_checkin_lock()["checked_in"].get(worker_record_id)
+
+def is_checked_out_today(worker_record_id):
+    return worker_record_id in load_checkin_lock().get("checked_out", {})
+
+def mark_checked_in(worker_record_id, checkin_time_str):
+    lock = load_checkin_lock()
+    lock["checked_in"][worker_record_id] = checkin_time_str
+    with open(CHECKIN_LOCK_FILE, "w") as f:
+        json.dump(lock, f)
+
+def mark_checked_out(worker_record_id):
+    lock = load_checkin_lock()
+    lock["checked_in"].pop(worker_record_id, None)
+    lock.setdefault("checked_out", {})[worker_record_id] = datetime.now().strftime("%H:%M:%S")
+    with open(CHECKIN_LOCK_FILE, "w") as f:
+        json.dump(lock, f)
+
+# ==========================================================
+# 4. AUTHENTICATION
+# ==========================================================
+def get_access_token():
+    now = time.time()
+    if TOKEN_CACHE["token"] and now < TOKEN_CACHE["expires_at"] - 60:
+        return TOKEN_CACHE["token"]
+    url  = f"https://accounts.{ZOHO_DOMAIN}/oauth/v2/token"
+    data = {
+        "refresh_token": REFRESH_TOKEN,
+        "client_id":     CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type":    "refresh_token",
+    }
+    r = zoho_request("POST", url, data=data)
+    if r is None:
+        print("[ERROR] Token request failed")
+        return None
+    result = r.json()
+    if "access_token" in result:
+        TOKEN_CACHE["token"] = result["access_token"]
+        TOKEN_CACHE["expires_at"] = now + int(result.get("expires_in", 3600))
+        return TOKEN_CACHE["token"]
+    print("Authentication Error:", result)
+    return None
+
+def auth_headers():
+    token = get_access_token()
+    if not token:
+        raise RuntimeError("Could not obtain access token.")
+    return {"Authorization": f"Zoho-oauthtoken {token}"}
+
+# ==========================================================
+# 5. WORKER HELPERS
+# ==========================================================
+def find_worker(user_id):
+    url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}"
+    criteria = f"(ZKTeco_User_ID2 == {int(user_id)})"
+    r = zoho_request("GET", url, headers=auth_headers(), params={"criteria": criteria})
+    if r:
+        data = r.json().get("data", [])
+        if data:
+            return data[0]
+    return None
+
+def get_worker_record(worker_record_id):
+    url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+    r = zoho_request("GET", url, headers=auth_headers())
+    return r.json().get("data", {}) if r else {}
+
+def is_fingerprint_enrolled(full_record):
+    raw = full_record.get("Fingerprint_Enrolled", [])
+    if isinstance(raw, str):
+        try: raw = ast.literal_eval(raw)
+        except Exception: raw = []
+    return isinstance(raw, list) and "YES" in raw
+
+def mark_fingerprint_enrolled(worker_record_id):
+    update_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+    for payload_value in (["YES"], "YES"):
+        r = zoho_request("PUT", update_url, headers=auth_headers(),
+                         json={"data": {"Fingerprint_Enrolled": payload_value}})
+        if r and r.status_code in (200, 201):
+            time.sleep(2)
+            refreshed = get_worker_record(worker_record_id)
+            if is_fingerprint_enrolled(refreshed):
+                return True
+    print("[ERROR] Could not update Fingerprint_Enrolled to YES.")
+    return False
+
+# ==========================================================
+# 6. FORMAT TOTAL TIME
+# ==========================================================
+def format_total_time(total_seconds):
+    hours, remainder = divmod(int(total_seconds), 3600)
+    minutes = round(remainder / 60)
+    return f"{hours}h {minutes}m"
+
+# ==========================================================
+# 7. ATTENDANCE HELPERS
+# ==========================================================
+def get_today_attendance(worker_record_id):
+    today_str = datetime.now().strftime("%d-%b-%Y")
+    url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{ATTENDANCE_REPORT}"
+    criteria = f'(Worker_ID_Lookup == "{worker_record_id}" && Date == "{today_str}")'
+    for _ in range(8):
+        r = zoho_request("GET", url, headers=auth_headers(), params={"criteria": criteria})
+        if r is None:
+            return None
+        if r.status_code == 404:
+            print(f"[ERROR] 404 on report '{ATTENDANCE_REPORT}'")
+            return None
+        data = r.json().get("data", [])
+        if data: return data[0]
+        time.sleep(2)
+    return {}
+
+# ==========================================================
+# 8. LOG ATTENDANCE WITH SINGLE DAILY CHECK-IN
+# ==========================================================
+def log_attendance_auto(worker_record_id, project_id, full_name, role_name):
+    now = datetime.now()
+    today_str = now.strftime("%d-%b-%Y")
+    form_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/form/{ATTENDANCE_FORM}"
+    proj_lookup = project_id or DEFAULT_PROJECT_ID
+
+    if is_checked_out_today(worker_record_id):
+        print(f"⛔ {full_name} has already checked IN and OUT today. See you tomorrow!")
+        return
+
+    checkin_time = is_checked_in_today(worker_record_id)
+    if checkin_time:
+        # CHECK-OUT
+        try: first_in_dt = datetime.strptime(checkin_time, "%d-%b-%Y %H:%M:%S")
+        except Exception: first_in_dt = now
+        total_secs = (now - first_in_dt).total_seconds()
+        total_time_str = format_total_time(total_secs)
+
+        existing = get_today_attendance(worker_record_id)
+        if existing and existing.get("ID"):
+            att_id = existing["ID"]
+            r = zoho_request("PUT", f"{form_url}/{att_id}", headers=auth_headers(),
+                             json={"data": {
+                                 "Last_Out": now.strftime("%d-%b-%Y %H:%M:%S"),
+                                 "Total_Hours": total_secs / 3600,
+                                 "Total_Time_Str": total_time_str
+                             }})
+            if r and r.status_code in (200,201):
+                mark_checked_out(worker_record_id)
+                print(f"🚪 {full_name} checked OUT at {now.strftime('%H:%M')}")
+                print(f"   Total Time Worked: {total_time_str}")
             else:
-                time.sleep(0.3)
-        except Exception as e:
-            print(f"Capture error: {e}")
-            time.sleep(0.5)
-
-    reg_tmp = create_string_buffer(2048)
-    reg_len = c_uint(2048)
-    t1 = create_string_buffer(captures[0][0], captures[0][1])
-    t2 = create_string_buffer(captures[1][0], captures[1][1])
-    t3 = create_string_buffer(captures[2][0], captures[2][1])
-    ret = zkfp.ZKFPM_DBMerge(DB_HANDLE, t1, t2, t3, reg_tmp, byref(reg_len))
-    if ret != 0:
-        print(f"Enrollment merge failed: {ret}")
-        return False
-
-    existing = []
-    if os.path.isfile(FINGERPRINT_DB_FILE):
-        with open(FINGERPRINT_DB_FILE, "r", encoding="utf-8") as f:
-            existing = json.load(f)
-
-    next_fid = 1
-    if existing:
-        next_fid = max(int(x["fid"]) for x in existing) + 1
-
-    ret = zkfp.ZKFPM_DBAdd(DB_HANDLE, next_fid, reg_tmp, reg_len.value)
-    if ret != 0:
-        print(f"DB add failed: {ret}")
-        return False
-
-    tpl_b64 = base64.b64encode(reg_tmp.raw[: reg_len.value]).decode("ascii")
-    existing.append({"fid": next_fid, "zkteco_user_id": str(user_id), "template_b64": tpl_b64})
-    _save_fingerprint_db(existing)
-    FID_TO_USER[next_fid] = str(user_id)
-    print(f"Enrollment successful. fid={next_fid}")
-    return True
-
-# ====================================
-# MAIN LOOP
-# ====================================
-def _capture_with_retry(device_handle, attempts=5, delay=0.25):
-    last_ret = None
-    for _ in range(attempts):
-        tpl, tpl_len, ret = capture_fingerprint(device_handle)
-        last_ret = ret
-        if ret == 0 and tpl:
-            return tpl, tpl_len, ret
-        time.sleep(delay)
-    return None, 0, last_ret if last_ret is not None else -1
-
-
-def _run_capture_loop(device_handle):
-    print("Fingerprint reader ready. Place finger...")
-    fail_count = 0
-    while True:
-        # Slow down capture polling to reduce CAPTURE_FAIL flapping
-        time.sleep(0.4)
-        template, template_len, ret = _capture_with_retry(device_handle, attempts=4, delay=0.25)
-        if template:
-            print(f"Captured raw template (len={template_len}).")
-            user_id = match_fingerprint(template, template_len)
-            print(f"Matched user_id={user_id}")
-            if user_id:
-                ok, msg = handle_punch(
-                    user_id,
-                    datetime.now(),
-                    DEVICE_ID,
-                    raw_payload={"template_len": template_len},
-                    source="fingerprint",
-                )
-                if not ok:
-                    print(f"Failed: {msg}")
-            else:
-                print("No matching fingerprint found in local DB.")
-                time.sleep(2)  # Prevent double scan
-            fail_count = 0
+                status = r.status_code if r else "No response"
+                body   = r.text[:300] if r else ""
+                print(f"[ERROR] Check-out failed ({status}): {body}")
         else:
-            if ret == -8:
-                fail_count += 1
-                if fail_count >= 20:
-                    print("Repeated CAPTURE_FAIL; resetting device...")
-                    device_handle = _reset_device()
-                    fail_count = 0
-        retry_pending()
-        time.sleep(0.6)  # Short delay before next scan
-
-
-def _list_enrolled():
-    if not os.path.isfile(FINGERPRINT_DB_FILE):
-        print("No enrollments found.")
+            print("⚠ Attendance record already exists for today. Contact Admin.")
         return
-    with open(FINGERPRINT_DB_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    if not data:
-        print("No enrollments found.")
+
+    # CHECK-IN
+    checkin_str = now.strftime("%d-%b-%Y %H:%M:%S")
+    r = zoho_request("POST", form_url, headers=auth_headers(),
+                     json={"data": {
+                         "Worker_ID_Lookup": worker_record_id,
+                         "Worker_Name": worker_record_id,
+                         "Projects": proj_lookup,
+                         "Projects_Assigned": proj_lookup,
+                         "Date": today_str,
+                         "First_In": checkin_str,
+                         "Worker_Full_Name": full_name,
+                         "Roles": role_name
+                     }})
+    if r and r.status_code in (200,201):
+        mark_checked_in(worker_record_id, checkin_str)
+        print(f"✅ {full_name} checked IN at {now.strftime('%H:%M')}")
+        print("   Remember to check OUT in the evening for your Daily-Pay to be updated.")
+    else:
+        status = r.status_code if r else "No response"
+        body   = r.text[:300] if r else ""
+        print(f"[ERROR] Check-in failed ({status}): {body}")
+
+# ==========================================================
+# 9. DUPLICATE FINGERPRINT DETECTION
+# ==========================================================
+def is_duplicate_fingerprint(new_template_bytes):
+    url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}"
+    r = zoho_request("GET", url, headers=auth_headers())
+    if not r or r.status_code != 200:
+        print("[ERROR] Cannot fetch workers to check duplicates.")
+        return False
+    workers = r.json().get("data", [])
+    zkfp2 = ZKFP2()
+    zkfp2.Init()
+    for worker in workers:
+        templates = worker.get("Fingerprint_Templates", [])
+        if isinstance(templates, str):
+            try: templates = ast.literal_eval(templates)
+            except Exception: templates = []
+        for t_b64 in templates:
+            t_bytes = base64.b64decode(t_b64)
+            if zkfp2.MatchFingerprint(new_template_bytes, t_bytes):
+                print(f"[DUPLICATE] Fingerprint matches worker: {worker.get('Full_Name','Unknown')}")
+                zkfp2.Terminate()
+                return True
+    zkfp2.Terminate()
+    return False
+
+# ==========================================================
+# 10. ENROLL & VERIFY FINGERPRINT
+# ==========================================================
+def enroll_fingerprint_auto(user_id):
+    zkfp2 = ZKFP2()
+    zkfp2.Init()
+    if zkfp2.GetDeviceCount() == 0:
+        print("No fingerprint device found.")
         return
-    print("Enrolled users:")
-    for item in data:
-        print(f"- fid {item['fid']} -> user {item['zkteco_user_id']}")
+    zkfp2.OpenDevice(0)
 
+    try:
+        worker = find_worker(user_id)
+        if not worker:
+            print("You are not registered in the system. Contact Admin.")
+            return
 
-def _parse_args():
-    parser = argparse.ArgumentParser(description="ZK Fingerprint Middleware")
-    sub = parser.add_subparsers(dest="cmd")
+        worker_record_id = worker["ID"]
+        full_name = worker.get("Full_Name","N/A")
+        role_name = worker.get("Roles","N/A")
 
-    enroll = sub.add_parser("enroll", help="Enroll a user fingerprint")
-    enroll.add_argument("--user-id", required=True, help="ZKTeco user ID to enroll")
+        proj_raw = worker.get("Projects_Assigned", {})
+        if isinstance(proj_raw, str):
+            try: proj_raw = ast.literal_eval(proj_raw)
+            except Exception: proj_raw = {}
+        proj_id = proj_raw.get("ID") or DEFAULT_PROJECT_ID
 
-    sub.add_parser("run", help="Run capture loop (default)")
-    sub.add_parser("list", help="List enrolled fingerprints")
+        full_record = get_worker_record(worker_record_id)
+        enrolled_templates = full_record.get("Fingerprint_Templates", [])
+        if isinstance(enrolled_templates, str):
+            try: enrolled_templates = ast.literal_eval(enrolled_templates)
+            except Exception: enrolled_templates = []
 
-    return parser.parse_args()
+        # Already enrolled? Verify
+        if enrolled_templates:
+            print(f"Welcome back, {full_name}! Place your finger to verify.")
+            capture = None
+            while not capture:
+                capture = zkfp2.AcquireFingerprint()
+                time.sleep(0.1)
+            template_bytes = bytes(list(capture[0]))
+            match_found = False
+            for t_b64 in enrolled_templates:
+                t_bytes = base64.b64decode(t_b64)
+                if zkfp2.MatchFingerprint(template_bytes, t_bytes):
+                    match_found = True
+                    break
+            if match_found:
+                print("✅ Fingerprint verified!")
+                log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
+                return
+            else:
+                print("❌ Fingerprint did not match any stored template. Contact Admin.")
+                return
 
+        # Not enrolled → enroll
+        print(f"Welcome {full_name}! Place your finger on the scanner to enroll.")
+        capture = None
+        while not capture:
+            capture = zkfp2.AcquireFingerprint()
+            time.sleep(0.1)
 
+        template_bytes = bytes(list(capture[0]))
+
+        # Duplicate check
+        if is_duplicate_fingerprint(template_bytes):
+            print("❌ This fingerprint is already registered. Enrollment denied.")
+            return
+
+        template_b64 = base64.b64encode(template_bytes).decode()
+        enrolled_templates.append(template_b64)
+
+        update_url = f"{API_DOMAIN}/{APP_OWNER}/{APP_NAME}/report/{WORKERS_REPORT}/{worker_record_id}"
+        zoho_request("PUT", update_url, headers=auth_headers(),
+                     json={"data": {"Fingerprint_Templates": enrolled_templates}})
+
+        mark_fingerprint_enrolled(worker_record_id)
+        print(f"✅ Fingerprint enrolled for {full_name}.")
+        log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
+
+    finally:
+        zkfp2.CloseDevice()
+        zkfp2.Terminate()
+
+# ==========================================================
+# 11. MAIN
+# ==========================================================
 if __name__ == "__main__":
-    args = _parse_args()
-    device_handle = init_device()
-
-    if args.cmd == "enroll":
-        enroll_fingerprint(args.user_id, device_handle)
-        sys.exit(0)
-    if args.cmd == "list":
-        _list_enrolled()
-        sys.exit(0)
-
-    _run_capture_loop(device_handle)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--user-id", type=str, required=True)
+    args = parser.parse_args()
+    enroll_fingerprint_auto(args.user_id)

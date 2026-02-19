@@ -44,7 +44,7 @@ def push_to_zoho(zk_log_data, device_serial):
     
     payload = {
         "data": {
-            "ZKTeco_User_ID": str(zk_log_data['user_id']),
+            "Worker_ID": str(zk_log_data['user_id']),
             "Timestamp": zk_log_data['timestamp'].strftime("%d-%b-%Y %H:%M:%S"),
             "Event_Type": zk_log_data['event'],
             "Device_ID": device_serial
