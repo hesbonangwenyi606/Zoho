@@ -20,3 +20,12 @@ __pycache__/
 
 # SVN folders
 .svn/
+
+
+
+
+venv/
+venv312/
+__pycache__/
+*.pyc
+.env
