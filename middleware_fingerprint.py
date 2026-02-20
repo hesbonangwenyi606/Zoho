@@ -856,7 +856,8 @@ def log_attendance_auto(worker_record_id, project_id, full_name, role_name):
                 body   = r.text[:300] if r else ""
                 print(f"[ERROR] Check-out failed ({status}): {body}")
         else:
-            print("⚠ Attendance record already exists for today. Contact Admin.")
+            print("Sorry enrollement available only once per day.")
+            print("Please Contact Admin.")
         return
 
     # CHECK-IN
@@ -921,7 +922,8 @@ def enroll_fingerprint_auto(user_id):
     try:
         worker = find_worker(user_id)
         if not worker:
-            print("You are not registered in the system. Contact Admin.")
+            print("You are not registered in the system.")
+            print("Please Contact Admin.")
             return
 
         worker_record_id = worker["ID"]
@@ -959,7 +961,8 @@ def enroll_fingerprint_auto(user_id):
                 log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
                 return
             else:
-                print("❌ Fingerprint did not match any stored template. Contact Admin.")
+                print("Fingerprint did not match any stored template.")
+                print("Please Contact Admin")
                 return
 
         # Not enrolled → enroll
@@ -973,7 +976,8 @@ def enroll_fingerprint_auto(user_id):
 
         # Duplicate check
         if is_duplicate_fingerprint(template_bytes):
-            print("❌ This fingerprint is already registered. Enrollment denied.")
+            print(" Sorry this fingerprint is already registered.")
+            print("Please Contact Admin")
             return
 
         template_b64 = base64.b64encode(template_bytes).decode()
@@ -999,3 +1003,4 @@ if __name__ == "__main__":
     parser.add_argument("--user-id", type=str, required=True)
     args = parser.parse_args()
     enroll_fingerprint_auto(args.user_id)
+    # enroll_fingerprint_auto(args.Worker_ID_Lookup)
