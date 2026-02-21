@@ -1,0 +1,12 @@
+ZK_ID,Name,Check-In,Check-Out,Total Hours,Overtime Hours,Late?,Late Note,Early Checkout?,Status
+67,Musyoki,21-Feb-2026 15:32:54,16:17:25,0.74,0,No,,Yes,Complete
+75,George Okonu,21-Feb-2026 15:34:20,16:18:36,0.74,0,No,,Yes,Complete
+76,Amos Kiplangat,21-Feb-2026 15:35:47,16:20:47,0.75,0,No,,Yes,Complete
+8,Dennis Koech,21-Feb-2026 16:23:18,16:55:46,0.54,0,Yes,563 min late,Yes,Complete
+82,Marion Wamalwa,21-Feb-2026 17:02:25,17:02:45,0.01,0,Yes,602 min late,No,Complete
+83,Moses Kibet,21-Feb-2026 17:29:00,17:29:17,0.01,0,Yes,629 min late,No,Complete
+81,William Mtai,21-Feb-2026 16:27:56,17:30:35,1.04,0,Yes,567 min late,No,Complete
+63,,21-Feb-2026 09:37:50,—,—,—,No,,—,Still In
+69,,21-Feb-2026 09:41:26,—,—,—,No,,—,Still In
+74,,21-Feb-2026 10:11:07,—,—,—,No,,—,Still In
+68,,21-Feb-2026 10:55:58,—,—,—,No,,—,Still In
