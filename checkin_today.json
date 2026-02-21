@@ -18,14 +18,6 @@
       "time": "21-Feb-2026 10:55:58",
       "zoho_id": "4838902000000529015"
     },
-    "8": {
-      "time": "21-Feb-2026 16:23:18",
-      "zoho_id": "4838902000000531019",
-      "worker_id": "4838902000000542015",
-      "name": "Dennis Koech",
-      "is_late": true,
-      "late_note": "563 min late"
-    },
     "81": {
       "time": "21-Feb-2026 16:27:56",
       "zoho_id": "4838902000000535011",
@@ -74,6 +66,15 @@
       "is_late": false,
       "late_note": "",
       "checkin_time": "21-Feb-2026 15:35:47"
+    },
+    "8": {
+      "time": "16:55:46",
+      "name": "Dennis Koech",
+      "total_hours": 0.54,
+      "overtime_hours": 0,
+      "is_late": true,
+      "late_note": "563 min late",
+      "checkin_time": "21-Feb-2026 16:23:18"
     }
   }
 }
