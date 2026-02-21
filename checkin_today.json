@@ -75,6 +75,15 @@
       "is_late": true,
       "late_note": "563 min late",
       "checkin_time": "21-Feb-2026 16:23:18"
+    },
+    "82": {
+      "time": "17:02:45",
+      "name": "Marion Wamalwa",
+      "total_hours": 0.01,
+      "overtime_hours": 0,
+      "is_late": true,
+      "late_note": "602 min late",
+      "checkin_time": "21-Feb-2026 17:02:25"
     }
   }
 }
