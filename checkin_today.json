@@ -17,6 +17,22 @@
     "68": {
       "time": "21-Feb-2026 10:55:58",
       "zoho_id": "4838902000000529015"
+    },
+    "8": {
+      "time": "21-Feb-2026 16:23:18",
+      "zoho_id": "4838902000000531019",
+      "worker_id": "4838902000000542015",
+      "name": "Dennis Koech",
+      "is_late": true,
+      "late_note": "563 min late"
+    },
+    "81": {
+      "time": "21-Feb-2026 16:27:56",
+      "zoho_id": "4838902000000535011",
+      "worker_id": "4838902000000542019",
+      "name": "William Mtai",
+      "is_late": true,
+      "late_note": "567 min late"
     }
   },
   "checked_out": {
@@ -31,6 +47,33 @@
     "72": "09:57:34",
     "77": "10:00:59",
     "78": "10:21:58",
-    "71": "11:11:17"
+    "71": "11:11:17",
+    "67": {
+      "time": "16:17:25",
+      "name": "Musyoki",
+      "total_hours": 0.74,
+      "overtime_hours": 0,
+      "is_late": false,
+      "late_note": "",
+      "checkin_time": "21-Feb-2026 15:32:54"
+    },
+    "75": {
+      "time": "16:18:36",
+      "name": "George Okonu",
+      "total_hours": 0.74,
+      "overtime_hours": 0,
+      "is_late": false,
+      "late_note": "",
+      "checkin_time": "21-Feb-2026 15:34:20"
+    },
+    "76": {
+      "time": "16:20:47",
+      "name": "Amos Kiplangat",
+      "total_hours": 0.75,
+      "overtime_hours": 0,
+      "is_late": false,
+      "late_note": "",
+      "checkin_time": "21-Feb-2026 15:35:47"
+    }
   }
 }
