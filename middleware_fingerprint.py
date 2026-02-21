@@ -591,7 +591,7 @@
 #                 log_attendance_auto(worker_record_id, proj_id, full_name, role_name)
 #                 return
 #             else:
-#                 print("❌ Fingerprint did not match any stored template. Contact Admin.")
+#                 print("Fingerprint did not match any stored template. Contact Admin.")
 #                 return
 
 #         # Not enrolled → enroll
@@ -626,6 +626,9 @@
 #     parser.add_argument("--user-id", type=str, required=True)
 #     args = parser.parse_args()
 #     enroll_fingerprint_auto(args.user_id)
+
+
+
 
 import os, ast, time, json, requests, argparse, base64
 from datetime import datetime
