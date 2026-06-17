@@ -248,7 +248,6 @@ Click Enroll.
 User places finger three times.
 Template stored in:
 fingerprints.json
-
 Example:
 
 {
